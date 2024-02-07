@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+<head>
+    <title>DomIK</title>
+    <style>
+        body {
+            margin: 0;
+        }
+        .overlay {
+            position: absolute;
+            left: 0; right: 0; top: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0);
+       }
+       .dialog {
+            position: absolute;
+            left: 0; right: 0; top: 0; bottom: 0;
+            color: #FFFFFF;
+            background: rgba(255, 0, 0, 0);
+       }
+       .option {
+            /* display: inline-block; */
+            color: #ffffff;
+            background: rgba(46, 206, 177, 0.1);
+       }
+    </style>
+<meta charset="utf-8" />
+</head>
+<body>
+
+<div class="overlay">
+    <canvas id="canvas3D" width="1920" height="1080">Ваш браузер не поддерживает элемент canvas</canvas>
+</div>
+
+<div class="dialog">
+    <h1 position="absolute">Projection system calibration for mobile planetarium (DomIK)</h1>
+    <select id="domik_preset" size="1" onchange="changePreset()">
+        <option value="case_0">Dome 2.5 Mirror 0.25"</option>
+        <option value="case_1">Dome 5.0 Mirror 0.37"</option>
+        <option value="case_2">Expert</option>
+    </select>
+    <div id="options"></div>
+</div>
+
+<script>
+var options = {
+    grid_label:{type:'label', text:'Grid'},
+    segment_count:{type:'range', value:9, label:'Segment Count', min:4, max:24, step:1, digits:0},
+    scale:{type:'range', value:1, label:'Scale', min:0.1, max:5, step:0.01, digits:2},
+    dome_label:     {type:'label', text:'Dome'},
+    dome_radius:    {type:'range', value:2.5, label:'Dome Radius', min:2, max:5, step:0.5, digits:1},
+    mirror_radius:  {type:'range', value:0.37,label:'Mirror Radius', min:0.2, max:0.7, step:0.01, digits:2}
+}
+
+var domik_preset = {
+    case_0:{
+        preset_label:"Dome 2.5 Mirror 0.25",
+        dome_radius:2.5,
+        mirror_radius:0.25,
+        mirror_position_x:0.0,
+        mirror_position_y:2.0,
+        mirror_position_z:0.0,
+        mirror_projector_position_x:0.0,
+        mirror_projector_position_y:1.0,
+        mirror_projector_position_z:-0.2,
+        hfactor:1.0,
+        vfactor:1.0
+    },
+    case_1:{
+        preset_label:"Dome 5.0 Mirror 0.37",
+        dome_radius:5.0,
+        mirror_radius:0.37,
+        mirror_position_x:0.0,
+        mirror_position_y:5.0,
+        mirror_position_z:0.0,
+        mirror_projector_position_x:0.0,
+        mirror_projector_position_y:4.0,
+        mirror_projector_position_z:0.0,
+        hfactor:1.0,
+        vfactor:1.0
+    },
+    case_2:{
+        preset_label:"Expert",
+        dome_radius:100.0,
+        mirror_radius:0.01,
+        mirror_position_x:0.0,
+        mirror_position_y:0.0,
+        mirror_position_z:100.0,
+        mirror_projector_position_x:0.0,
+        mirror_projector_position_y:99.0,
+        mirror_projector_position_z:0.0,
+        hfactor:1.017,
+        vfactor:1.017
+    }
+}
+
+var domik = {
+}
+
+function changePreset(){
+    preset_case = document.getElementById("domik_preset").value;
+    loadPreset(preset_case);
+    setOptionsFromDomik();
+    updateApp();
+}
+
+function loadPreset(preset_id){
+    preset = domik_preset[preset_id]
+    domik = { ...preset }
+}
+
+function setNumberFormat(value, digits=2) {
+    return new Intl.NumberFormat("en", {style: "decimal", minimumFractionDigits:digits}).format(value)
+}
+
+function updateOption(id, value=null){
+    option = options[id]
+    label = option.label
+    digits = option.digits
+    if(value==null){
+        value = document.getElementById(id).value;
+    } else {
+        document.getElementById(id).value = value;
+        document.getElementById(id+"_text").textContent = label + ": " + setNumberFormat(value, digits);
+    }
+    option.value = value
+    return value
+}
+    
+function updateRangeOption(id) {
+    option = options[id]
+    label = option.label
+    digits = option.digits
+    value = updateOption(id)
+    document.getElementById(id+"_text").textContent = label + ": " + setNumberFormat(value, digits);
+    updateApp();
+}
+
+function setOptionsFromDomik(){
+    option_list = ['dome_radius', 'mirror_radius']
+    for(index in option_list){
+        id = option_list[index]
+        console.log("opt",id)
+        updateOption(id, domik[id])
+    }
+}
+
+function setDomikFromOptions(){
+    option_list = ['dome_radius', 'mirror_radius']
+    for(index in option_list){
+        id = option_list[index]
+        domik[id] = updateOption(id)
+    }
+}
+
+function initOptions(){
+    options_html = ""
+    for (id in options) {
+        option = options[id]
+        if(option.type=='label') options_html += addLabel(option.text)
+        if(option.type=='range') options_html += addRange(id, option.label, option.value, option.min, option.max, option.step)
+    }
+    document.getElementById('options').innerHTML = options_html
+}
+
+function initApp() {
+    initOptions();
+    loadPreset('case_0');
+    setOptionsFromDomik()
+}
+
+function addLabel(text){
+    return "<h2>"+ text + "</h2>"
+}
+
+function addRange(id, label, value, min, max, step){
+    return "<div class='option'><div id='"+id+"_text'>"+label+": "+value+"</div><input type='range' value="+value+" min="+min+" max="+max+" step="+step+" id='"+id+"' oninput='updateRangeOption(id)'></div>"
+}
+</script>
+
+
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+    void main(void) {
+        gl_FragColor = vec4(1.0, 0.5, 0.1, 1.0);
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    
+    vec3 project(vec3 v1, vec3 v2) {
+        float mul = dot(v1, v2) / dot(v2, v2);
+        return vec3(mul*v2[0], mul*v2[1], mul*v2[2]);
+    }
+
+    vec3 proj(vec3 ray0, vec3 ray1, vec3 point){
+        vec3 v = point-ray0;        // sub_v3_v3v3(v,point,ray0);
+        vec3 axis = ray1-ray0;      // sub_v3_v3v3(axis,ray1,ray0);
+        vec3 t = project(v, axis);  // project_v3_v3v3(t,v,axis);
+        vec3 ret = t+ray0;          // add_v3_v3v3(ret,t,ray0);
+        return ret;
+    }
+
+    vec3 med(vec3 v0, vec3 v1){
+        vec3 ret = (v0+v1)/2.0;     // add_v3_v3v3(ret,v0,v1);
+                                    // mul_v3_fl(ret,0.5f);
+        return ret;
+    }
+    float angle(vec3 v0,vec3 v1){
+        return acos(dot(v0,v1));
+    }
+
+    vec3 domik_get_point_on_mirror(vec3 v){
+        vec3 t0;
+        vec3 t1;
+        vec3 vt;
+        float lvt;
+        vec3 s0;
+        vec3 s1;
+        vec3 v0;
+        vec3 v1;
+        int iter = 100;
+        vec3 vv;
+        float a0;
+        float a1;
+        
+        vec3 domik_mirror_position = vec3(0.0, 2.0, 0.0);
+        vec3 domik_projector_position = vec3(0.0, 1.0, 0.0);
+        float domik_mirror_radius = 0.25;
+
+        vt = proj(domik_mirror_position,v,domik_projector_position);
+        lvt = distance(domik_mirror_position,vt);
+
+
+        /*
+        <!-- if(lvt>=domik_mirror_radius || v[1]<0){
+            s0 = v-domik_mirror_position;                           // sub_v3_v3v3(s0,v,domik->mirror_position);
+            s1 = domik_projector_position-domik_mirror_position;    // sub_v3_v3v3(s1,domik->projector_position,domik->mirror_position);
+            v0 = s0;                                                // copy_v3_v3(v0,s0);
+            v1 = s1;                                                // copy_v3_v3(v1,s1);
+            while(iter--!=0){
+                vt = med(v0,v1);
+                vv = vt;                                            // copy_v3_v3(vv,vt);
+                normalize(vv);                                  // normalize_v3(vv);
+                vv = vv*domik_mirror_radius;                        // mul_v3_fl(vv,domik->mirror_radius);
+                t0 = s0-vv;                                         // sub_v3_v3v3(t0,s0,vv);
+                t1 = s1-vv;                                         // sub_v3_v3v3(t1,s1,vv);
+                a0 = angle(t0,vv);                                  // a0 = angle_v3v3(t0,vv);
+                a1 = angle(t1,vv);                                  // a1 = angle_v3v3(t1,vv);
+                if(abs(a0-a1)<0.000000001) break;
+                    if(a0<a1) v0=vt;                                // copy_v3_v3(v0,vt);
+                    else v1=vt;                                     // else copy_v3_v3(v1,vt);
+            }
+            vv = med(v0,v1);                                        // med(vv,v0,v1);
+            normalize(vv);                                          // normalize_v3(vv);
+            vv = vv*domik_mirror_radius;                            // mul_v3_fl(vv,domik->mirror_radius);
+            vv = vv+domik_mirror_position;                          // add_v3_v3(vv,domik->mirror_position);
+            vec3 ret = vv;                                               // copy_v3_v3(ret,vv);
+            return ret;                                             // return true;
+        } -->*/
+        return vec3(lvt,lvt,0);
+    }
+
+    vec3 domik_reverse(vec3 d){
+        vec3 domik_dome_position = vec3(0.0, 0.0, 0.0);
+        vec3 domik_mirror_position = vec3(0.0, 2.0, 0.0);
+        vec3 domik_projector_position = vec3(0.0, 1.0, 0.0);
+        
+        float domik_dome_radius = 2.5;
+        float domik_mirror_radius = 0.25;
+
+        vec3 pm = normalize(domik_projector_position - domik_mirror_position)*domik_mirror_radius+domik_mirror_position;
+        vec3 dm = normalize(d - domik_mirror_position)*domik_mirror_radius+domik_mirror_position;
+        return dm;
+    }
+
+    vec3 domik_transform_pd(vec3 p){
+        vec3 s1;
+        int rs;
+        vec3 r0;
+        vec3 r1;
+        vec3 m;
+        vec3 sp_ray;
+        vec3 pp;
+        float dist;
+        
+        vec3 domik_img_nn = vec3(0,0,0);
+        vec3 domik_img_mn = vec3(0,0,0);
+
+        float domik_img_fmn = domik_img_nn[2]-domik_img_mn[2];
+        vec3 s = vec3(p[0],0,p[1]+1.0);
+        
+        //+    mul_v3_fl(s,domik->img_fmn);
+        //+    add_v3_v3(s,domik->img_mn);
+        //+    add_v3_v3v3(s1,s,domik->projector_position);
+        //+
+        //+    rs=isect_line_sphere_v3(domik->projector_position, s1, domik->mirror_position,domik->mirror_radius,r0,r1);
+        //+    if(rs<=0) return false;
+        //+    copy_v3_v3(m,r0);
+        //+    if(rs==2) if(len_v3v3(domik->projector_position,r0)>len_v3v3(domik->projector_position,r1)) copy_v3_v3(m,r1);
+        //+
+        //+    proj(sp_ray,domik->mirror_position,m,domik->projector_position);
+        //+
+        //+    sub_v3_v3v3(s1,sp_ray,domik->projector_position);
+        //+    add_v3_v3(sp_ray,s1);
+        //+
+        //+    rs=isect_line_sphere_v3(m,sp_ray,domik->dome_position,domik->dome_radius,r0,r1);
+        //+    if(rs<=0) return false;
+        //+    copy_v3_v3(d,r0);
+        //+    if(rs==2) if(len_v3v3(domik->mirror_position,r0)<len_v3v3(domik->mirror_position,r1) & r1[2]>=0) copy_v3_v3(d,r1);
+        //+
+        //+    param[0] = len_v3v3(m,d);
+        //+
+        //+    copy_v3_v3(ret,d);
+        //+    return true;
+        //+}
+        //+ -->
+
+        return vec3(p);
+    }
+
+    attribute vec3 aVertexPosition;
+    void main(void) {
+        float xf = aVertexPosition.x;
+        float yf = aVertexPosition.y;
+        float xp = (xf+1.0)/2.0;
+        float yp = (yf+1.0)/2.0;
+        float pr = sqrt(xf*xf+yp*yp);
+        vec3 p;
+        if(pr<=1.0){
+            p = vec3(xf, yf, 0.0);
+        } else {
+            p = vec3(0.0, 0.0, 0.0);
+        }
+        vec3 m;
+        vec3 s;
+        vec3 pp;
+        vec3 v = aVertexPosition;
+        gl_Position = vec4(v, 1.0);
+    }
+</script>
+
+<script type="text/javascript">
+var gl;
+var shaderProgram;
+var vertexBuffer;
+var indexBuffer;
+
+function initShaders() {
+    var fragmentShader = getShader(gl.FRAGMENT_SHADER, 'shader-fs');
+    var vertexShader = getShader(gl.VERTEX_SHADER, 'shader-vs');
+    shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        alert("Не удалось установить шейдеры");
+    }
+    gl.useProgram(shaderProgram);
+    shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+}
+
+function makeDome(){
+    segment_count = Number(options['segment_count'].value)+1;
+    scale = parseFloat(options['scale'].value);
+    subdiv = 5;
+    ring_count = segment_count;
+    segment_count = ring_count*4;
+    total_vertices = 2*segment_count*ring_count*subdiv;
+    vertices = Array(3*total_vertices);
+    indices = Array(2*total_vertices);
+    r = scale;
+    index = 0;
+    da = 2.0*Math.PI/(segment_count*subdiv);
+    db = 0.5*Math.PI/(ring_count-1);
+    for (let j=0; j<ring_count; j++){
+        start_index = index;
+        for (let i=0; i<(segment_count*subdiv); i++){
+            b = db*j;
+            a = da*i;
+            z = r * Math.cos(b);
+            x = r * Math.sin(b) * Math.cos(a);
+            y = r * Math.sin(b) * Math.sin(a);
+            vertices[index*3+0] = x;
+            vertices[index*3+1] = y;
+            vertices[index*3+2] = z;
+            indices[index*2+0] = start_index + i;
+            indices[index*2+1] = start_index + (i+1) % (segment_count*subdiv);
+            index++;
+        }
+    }
+    db = 2.0*Math.PI/(segment_count);
+    da = 0.5*Math.PI/(ring_count*subdiv-1);
+    for (let j=0; j<segment_count; j++){
+        start_index = index;
+        for (let i=0; i<(ring_count*subdiv); i++){
+            b = db*j;
+            a = da*i;
+            z = r * Math.cos(a);
+            x = r * Math.sin(a) * Math.cos(b);
+            y = r * Math.sin(a) * Math.sin(b);
+            vertices[index*3+0] = x;
+            vertices[index*3+1] = y;
+            vertices[index*3+2] = z;
+            if(i>0){
+                indices[index*2+0] = start_index + i-1;
+                indices[index*2+1] = start_index + i;
+            }
+            index++;
+        }
+    }
+    console.log("Vertices Count:", index);
+    return [vertices, indices]
+}
+
+function getShader(type,id) {
+    var source = document.getElementById(id).innerHTML;
+    var shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert("Ошибка компиляции шейдера: " + gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);   
+        return null;
+    }
+    return shader;  
+}
+
+function initBuffers(vertices, indices) {
+    vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    vertexBuffer.itemSize = 3;
+    indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    indexBuffer.numberOfItems = indices.length;
+}
+  
+function draw() {    
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    gl.drawElements(gl.LINES, indexBuffer.numberOfItems, gl.UNSIGNED_SHORT,0);
+}
+
+function domik_transform_dp(d){
+
+}
+
+function updateApp(){
+    setDomikFromOptions();
+    data = makeDome();
+    initShaders();
+    initBuffers(data[0],data[1]);
+    draw();  
+}
+
+window.onload=function(){
+    var canvas = document.getElementById("canvas3D");
+    try {
+        gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    }
+    catch(e) {}
+      if (!gl) {
+        alert("Ваш браузер не поддерживает WebGL");
+      }
+    if(gl){
+        initApp();
+        gl.viewportWidth = canvas.width;
+        gl.viewportHeight = canvas.height;
+        updateApp();
+    }
+}
+</script>
+</body>
+</html>
