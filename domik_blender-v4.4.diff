@@ -1,0 +1,1269 @@
+diff --git a/release/datafiles/splash.png b/release/datafiles/splash.png
+index 4475ee064ac..d823d4746ef 100644
+Binary files a/release/datafiles/splash.png and b/release/datafiles/splash.png differ
+diff --git a/scripts/startup/bl_ui/space_sequencer.py b/scripts/startup/bl_ui/space_sequencer.py
+index 578f0a636db..d3daab3ccd6 100644
+--- a/scripts/startup/bl_ui/space_sequencer.py
++++ b/scripts/startup/bl_ui/space_sequencer.py
+@@ -845,6 +845,7 @@ class SEQUENCER_MT_add_effect(Menu):
+ 
+         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
+         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
++        col.operator("sequencer.effect_strip_add", text="DomIK").type = 'DOMIK'
+         col.enabled = selected_sequences_len(context) != 0
+ 
+ 
+@@ -1029,7 +1030,7 @@ class SEQUENCER_MT_strip(Menu):
+                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
+                         'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP', 'WIPE', 'GLOW',
+                         'TRANSFORM', 'COLOR', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+-                        'GAUSSIAN_BLUR',
++                        'GAUSSIAN_BLUR', 'DOMIK',
+                 }:
+                     layout.separator()
+                     layout.menu("SEQUENCER_MT_strip_effect")
+@@ -1202,7 +1203,7 @@ class SEQUENCER_MT_context_menu(Menu):
+                     'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
+                     'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP', 'WIPE', 'GLOW',
+                     'TRANSFORM', 'COLOR', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+-                    'GAUSSIAN_BLUR',
++                    'GAUSSIAN_BLUR', 'DOMIK',
+             }:
+                 layout.separator()
+                 layout.menu("SEQUENCER_MT_strip_effect")
+@@ -1398,7 +1399,7 @@ class SEQUENCER_PT_strip(SequencerButtonsPanel, Panel):
+         if strip_type in {
+                 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER', 'MULTIPLY',
+                 'OVER_DROP', 'GLOW', 'TRANSFORM', 'SPEED', 'MULTICAM',
+-                'GAUSSIAN_BLUR', 'COLORMIX',
++                'GAUSSIAN_BLUR', 'COLORMIX', 'DOMIK',
+         }:
+             icon_header = 'SHADERFX'
+         elif strip_type in {
+@@ -1491,7 +1492,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
+             'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
+             'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
+             'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
+-            'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX',
++            'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX', 'DOMIK',
+         }
+ 
+     def draw(self, context):
+@@ -1634,7 +1635,63 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
+             layout.prop(strip, "blend_effect", text="Blend Mode")
+             row = layout.row(align=True)
+             row.prop(strip, "factor", slider=True)
+-
++        elif strip.type == 'DOMIK':
++            col = layout.column(align=True)
++            col.label(text="Transform Type", icon='OPTIONS')
++            row = col.row(align=True)
++            row.prop(strip, "transformtype", text="")
++            if strip.transformtype in {'F2S','E2S'}:
++                col.prop(strip, "dome_system",text="")
++                if strip.dome_system in {'CUSTOM'}:
++                    col.label(text="Dome:")
++                    col.prop(strip, "dome_radius", text="Radius")
++                    col.separator()
++                    col.label(text="Mirror:")
++                    col.prop(strip, "mirror_radius", text="Radius")
++                    col.prop(strip, "mirror_position_x", text="X")
++                    col.prop(strip, "mirror_position_y", text="Y")
++                    col.prop(strip, "mirror_position_z", text="Z")
++                    col.separator()
++                    col.label(text="Projector:")
++                    col.prop(strip, "projector_position_x", text="X")
++                    col.prop(strip, "projector_position_y", text="Y")
++                    col.prop(strip, "projector_position_z", text="Z")
++                    #col.separator()
++                    #col.prop(strip, "distortion", text="Distortion")
++                    col.label(text="Scale factor:")
++                    col.prop(strip, "hfactor", text="horizontal")
++                    col.prop(strip, "vfactor", text="vertical")
++            col.prop(strip, "interpolation", text="Interpolation")
++            col.prop(strip, "aspect", text="Aspect")
++            col.prop(strip, "reverse", text="Reverse")
++            col.label(text="Frame preset", icon='OPTIONS')
++            col.separator()
++            col.prop(strip, "offset_x", text="Loop X")
++            col.prop(strip, "offset_y", text="     Y")
++            col.prop(strip, "hflip",    text="Flip X")
++            col.prop(strip, "vflip",    text="     Y")
++            col.separator()
++            col.prop(strip, "color", text="Background")
++            col.separator()
++            #row.prop(strip,"rflip",text="Radial", toggle=True)
++            #if strip.transformtype in {'FISHEYE2SPHERE'}:
++            #    row.prop(strip, "align", text="Align")
++            flow = layout.column(align=True)
++            if strip.transformtype in {'E2F','F2S','E2S'}:
++                flow.prop(strip, "rotation", text="Rotation")
++                flow.prop(strip, "dome_scope", text="Scope")
++            if strip.transformtype in {'F2S','E2S'}:
++                flow.prop(strip, "fade", text="Fade distance")
++            if strip.transformtype in {'E2F','E2S'}:
++                flow.separator()
++                flow.prop(strip, "upper"  , text="Crop Upper")
++                flow.prop(strip, "lateral", text="   Lateral")
++                if strip.reverse == False:
++                    flow.separator()
++                    flow.prop(strip, "upper_fade",   text="Fade Upper")
++                    flow.prop(strip, "lateral_fade", text="   Lateral")
++                    if strip.lateral_fade!=0:
++                        flow.prop(strip, "seamless", text="Lateral as seamless")
+ 
+ class SEQUENCER_PT_effect_text_layout(SequencerButtonsPanel, Panel):
+     bl_label = "Layout"
+@@ -2325,7 +2382,7 @@ class SEQUENCER_PT_adjust_video(SequencerButtonsPanel, Panel):
+             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
+             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
+             'OVER_DROP', 'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
+-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
++            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX', 'DOMIK',
+         }
+ 
+     def draw(self, context):
+@@ -2362,7 +2419,7 @@ class SEQUENCER_PT_adjust_color(SequencerButtonsPanel, Panel):
+             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
+             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
+             'OVER_DROP', 'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
+-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
++            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX', 'DOMIK',
+         }
+ 
+     def draw(self, context):
+diff --git a/source/blender/editors/space_outliner/outliner_draw.cc b/source/blender/editors/space_outliner/outliner_draw.cc
+index aa5d5499a54..62b645bd189 100644
+--- a/source/blender/editors/space_outliner/outliner_draw.cc
++++ b/source/blender/editors/space_outliner/outliner_draw.cc
+@@ -2853,6 +2853,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
+           case SEQ_TYPE_ALPHAOVER:
+           case SEQ_TYPE_ALPHAUNDER:
+           case SEQ_TYPE_COLORMIX:
++          case SEQ_TYPE_DOMIK:
+           case SEQ_TYPE_MULTICAM:
+           case SEQ_TYPE_TRANSFORM:
+           case SEQ_TYPE_SPEED:
+diff --git a/source/blender/editors/space_sequencer/sequencer_add.cc b/source/blender/editors/space_sequencer/sequencer_add.cc
+index cfd580de73f..fda5b736369 100644
+--- a/source/blender/editors/space_sequencer/sequencer_add.cc
++++ b/source/blender/editors/space_sequencer/sequencer_add.cc
+@@ -1539,6 +1539,8 @@ static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
+       return TIP_("Add a text strip to the sequencer");
+     case SEQ_TYPE_COLORMIX:
+       return TIP_("Add a color mix effect strip to the sequencer");
++    case SEQ_TYPE_DOMIK:
++      return TIP_("Add a domik effect strip to the sequencer");
+     default:
+       break;
+   }
+diff --git a/source/blender/editors/space_sequencer/sequencer_edit.cc b/source/blender/editors/space_sequencer/sequencer_edit.cc
+index dd8c3e85b09..50c20ea9043 100644
+--- a/source/blender/editors/space_sequencer/sequencer_edit.cc
++++ b/source/blender/editors/space_sequencer/sequencer_edit.cc
+@@ -2676,6 +2676,7 @@ const EnumPropertyItem sequencer_prop_effect_types[] = {
+     {SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
+     {SEQ_TYPE_TEXT, "TEXT", 0, "Text", ""},
+     {SEQ_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
++    {SEQ_TYPE_DOMIK, "DOMIK", 0, "DomIK", ""},
+     {0, nullptr, 0, nullptr, nullptr},
+ };
+ 
+diff --git a/source/blender/editors/space_sequencer/sequencer_timeline_draw.cc b/source/blender/editors/space_sequencer/sequencer_timeline_draw.cc
+index fcd7f5f3ff5..2c417141c00 100644
+--- a/source/blender/editors/space_sequencer/sequencer_timeline_draw.cc
++++ b/source/blender/editors/space_sequencer/sequencer_timeline_draw.cc
+@@ -335,6 +335,7 @@ static void color3ubv_from_seq(const Scene *curscene,
+     case SEQ_TYPE_ADJUSTMENT:
+     case SEQ_TYPE_GAUSSIAN_BLUR:
+     case SEQ_TYPE_COLORMIX:
++    case SEQ_TYPE_DOMIK:
+       UI_GetThemeColor3ubv(TH_SEQ_EFFECT, r_col);
+ 
+       /* Slightly offset hue to distinguish different effects. */
+@@ -377,6 +378,9 @@ static void color3ubv_from_seq(const Scene *curscene,
+       else if (seq->type == SEQ_TYPE_MULTICAM) {
+         rgb_byte_set_hue_float_offset(r_col, 0.85);
+       }
++      else if (seq->type == SEQ_TYPE_DOMIK) {
++        rgb_byte_set_hue_float_offset(r_col, 0.48);
++      }
+       break;
+ 
+     case SEQ_TYPE_COLOR:
+diff --git a/source/blender/makesdna/DNA_sequence_types.h b/source/blender/makesdna/DNA_sequence_types.h
+index 90852893136..50bf10037cc 100644
+--- a/source/blender/makesdna/DNA_sequence_types.h
++++ b/source/blender/makesdna/DNA_sequence_types.h
+@@ -482,6 +482,67 @@ typedef struct ColorMixVars {
+   float factor;
+ } ColorMixVars;
+ 
++/*For DOMIK*/
++
++typedef struct DomIKData {
++    int ops;
++    int x, y;
++    float mx, my;
++    float upper_fade;
++    float lateral_fade;
++    float dist;
++} DomIKData;
++
++typedef struct DomIKVars {
++    DomIKData *data;
++    uchar bg[4];
++    char transformtype;
++    char reverse;
++    char seamless;
++    char align;
++    char dome_system;
++    char p[4];
++    char vflip;
++    char hflip;
++    char rflip;
++    int recache;
++    int aspect;
++    int count_threads;
++    int init_thread;
++    int width;
++    int height;
++    float offset_x;
++    float offset_y;
++    int interpolation;
++    float fade;
++    float update, v_update;
++    float upper;
++    float upper_fade;
++    float lateral;
++    float factor;
++    float lateral_fade;
++    float rotation;
++    float col[4];
++    float hfactor;
++    float vfactor;
++    float dome_radius;
++    float dome_scope;
++    float dome_scope2;
++    float mirror_radius;
++    float mirror_position_x;
++    float mirror_position_y;
++    float mirror_position_z;
++    float projector_position_x;
++    float projector_position_y;
++    float projector_position_z;
++    float dome_position[3];
++    float mirror_position[3];
++    float projector_position[3];
++    float img_mn[3];
++    float img_nn[3];
++    float img_fmn;
++} DomIKVars;
++
+ /** \} */
+ 
+ /* -------------------------------------------------------------------- */
+@@ -739,10 +800,10 @@ typedef enum SequenceType {
+   SEQ_TYPE_SPEED = 29,
+   SEQ_TYPE_MULTICAM = 30,
+   SEQ_TYPE_ADJUSTMENT = 31,
++  SEQ_TYPE_DOMIK = 61,
+   SEQ_TYPE_GAUSSIAN_BLUR = 40,
+   SEQ_TYPE_TEXT = 41,
+   SEQ_TYPE_COLORMIX = 42,
+-
+   /* Blend modes */
+   SEQ_TYPE_SCREEN = 43,
+   SEQ_TYPE_LIGHTEN = 44,
+@@ -763,7 +824,7 @@ typedef enum SequenceType {
+   SEQ_TYPE_DIFFERENCE = 59,
+   SEQ_TYPE_EXCLUSION = 60,
+ 
+-  SEQ_TYPE_MAX = 60,
++  SEQ_TYPE_MAX = 61,
+ } SequenceType;
+ 
+ enum {
+diff --git a/source/blender/makesrna/intern/rna_sequencer.cc b/source/blender/makesrna/intern/rna_sequencer.cc
+index efb47ac1d29..9d88faf6375 100644
+--- a/source/blender/makesrna/intern/rna_sequencer.cc
++++ b/source/blender/makesrna/intern/rna_sequencer.cc
+@@ -830,6 +830,8 @@ static StructRNA *rna_Sequence_refine(PointerRNA *ptr)
+       return &RNA_TextSequence;
+     case SEQ_TYPE_COLORMIX:
+       return &RNA_ColorMixSequence;
++    case SEQ_TYPE_DOMIK:
++      return &RNA_DomIKSequence;
+     default:
+       return &RNA_Sequence;
+   }
+@@ -2042,6 +2044,7 @@ static const EnumPropertyItem blend_mode_items[] = {
+     {SEQ_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
+     {SEQ_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", ""},
+     {SEQ_TYPE_OVERDROP, "OVER_DROP", 0, "Over Drop", ""},
++    {SEQ_TYPE_DOMIK, "DOMIK", 0, "DomIK", ""},
+     {0, nullptr, 0, nullptr, nullptr},
+ };
+ 
+@@ -2121,6 +2124,7 @@ static void rna_def_sequence(BlenderRNA *brna)
+       {SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
+       {SEQ_TYPE_TEXT, "TEXT", 0, "Text", ""},
+       {SEQ_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
++      {SEQ_TYPE_DOMIK, "DOMIK", 0, "DomIK", ""},
+       {0, nullptr, 0, nullptr, nullptr},
+   };
+ 
+@@ -3540,6 +3544,220 @@ static void rna_def_color_mix(StructRNA *srna)
+   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+ }
+ 
++static void rna_def_domik(StructRNA *srna)
++{
++    PropertyRNA *prop;
++
++    static const EnumPropertyItem transformtype_items[] = {
++        {0, "NONE", 0, "None", "None"},
++        {1, "E2F",  0, "Equidistant to Fisheye", "Equidistant to Fisheye transform"},
++        {2, "E2S",  0, "Equidistant to Spherical", "Equidistant to Spherical mirror transform"},
++        {3, "F2S",  0, "Fisheye to Spherical", "Fisheye to Spherical mirror transform"},
++        {4, "C2S",  0, "Cubemap to Spherical", "Cubemap to Spherical mirror transform"},
++        {0, NULL, 0, NULL, NULL}
++    };
++
++    static const EnumPropertyItem align_items[] = {
++        {0, "NONE", 0, "None", "None"},
++        {1, "FULLVERTICAL", 0, "Full vertical", "Full vertical"},
++        {2, "FULLHORIZONTAL", 0, "Full horizontal", "Full horizontal"},
++        {3, "TRUNCATEDBOTTOM", 0, "Truncated bottom", "Truncated bottom"},
++        {4, "TRUNCATEDTOP", 0, "Truncated top", "Truncated top"},
++        {0, NULL, 0, NULL, NULL}
++    };
++
++    static const EnumPropertyItem dome_items[] = {
++        {0, "DOME50", 0, "Dome 5 Mirror 0.37", ""},
++        {1, "DOME25", 0, "Dome 2.5 Mirror 0.25", ""},
++        {2, "EXPERT", 0, "Expert", ""},
++        {3, "CUSTOM", 0, "Custom", ""},
++        {0, NULL, 0, NULL, NULL}
++    };
++
++    RNA_def_struct_sdna_from(srna, "DomIKVars", "effectdata");
++
++    prop = RNA_def_property(srna, "transformtype", PROP_ENUM, PROP_NONE);
++    RNA_def_property_enum_items(prop, transformtype_items);
++    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
++    RNA_def_property_ui_text(prop, "transformtype", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "align", PROP_ENUM, PROP_NONE);
++    RNA_def_property_enum_items(prop, align_items);
++    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
++    RNA_def_property_ui_text(prop, "align", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "dome_system", PROP_ENUM, PROP_NONE);
++    RNA_def_property_enum_items(prop, dome_items);
++    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
++    RNA_def_property_ui_text(prop, "dome_system", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "aspect", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "aspect", 0);
++    RNA_def_property_ui_text(prop, "Aspect", "Aspect correct");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "hflip", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "hflip", 0);
++    RNA_def_property_ui_text(prop, "Horizontal flip", "Horizontal flip");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "vflip", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "vflip", 0);
++    RNA_def_property_ui_text(prop, "Vertical flip", "Vertical flip");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "rflip", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "rflip", 0);
++    RNA_def_property_ui_text(prop, "Radial flip", "Radial flip");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "reverse", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "reverse", 0);
++    RNA_def_property_ui_text(prop, "Reverse", "Reverse");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "interpolation", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "interpolation", 0);
++    RNA_def_property_ui_text(prop, "Interpolation", "Interpolation");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "seamless", PROP_BOOLEAN, PROP_NONE);
++    RNA_def_property_boolean_sdna(prop, NULL, "seamless", 0);
++    RNA_def_property_ui_text(prop, "Seamless", "Seamless");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "rotation");
++    RNA_def_property_range(prop, -180.0f, 180.0f);
++    RNA_def_property_ui_text(prop, "Rotation", "Rotation");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "offset_x", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "offset_x");
++    RNA_def_property_range(prop, -100.0f, 100.0f);
++    RNA_def_property_ui_text(prop, "offset_x", "offset_x");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "offset_y", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "offset_y");
++    RNA_def_property_range(prop, -100.0f, 100.0f);
++    RNA_def_property_ui_text(prop, "offset_y", "offset_y");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
++    RNA_def_property_float_sdna(prop, NULL, "col");
++    RNA_def_property_ui_text(prop, "Color", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "upper", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "upper");
++    RNA_def_property_float_default(prop, 1.0f);
++    RNA_def_property_range(prop, 0.01f, 1.0f);
++    RNA_def_property_ui_text(prop, "upper", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "lateral", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "lateral");
++    RNA_def_property_float_default(prop, 1.0f);
++    RNA_def_property_range(prop, 0.01f, 1.0f);
++    RNA_def_property_ui_text(prop, "lateral", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "upper_fade", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "upper_fade");
++    RNA_def_property_float_default(prop, 0.0f);
++    RNA_def_property_range(prop, 0.0f, 1.0f);
++    RNA_def_property_ui_text(prop, "upper_fade", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "lateral_fade", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "lateral_fade");
++    RNA_def_property_float_default(prop, 0.0f);
++    RNA_def_property_range(prop, 0.0f, 1.0f);
++    RNA_def_property_ui_text(prop, "lateral", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++
++    prop = RNA_def_property(srna, "hfactor", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "hfactor");
++    RNA_def_property_float_default(prop, 1.0f);
++    //RNA_def_property_range(prop, 1.0f, 10.0f);
++    RNA_def_property_ui_text(prop, "coff w1", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "vfactor", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "vfactor");
++    RNA_def_property_float_default(prop, 1.0f);
++    //RNA_def_property_range(prop, 0.1f, 10.0f);
++    RNA_def_property_ui_text(prop, "coff h1", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "fade", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "fade");
++    RNA_def_property_float_default(prop, 0.0f);
++    RNA_def_property_range(prop, 0.0f, 1.0f);
++    RNA_def_property_ui_text(prop, "fade", "");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "dome_scope", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "dome_scope");
++    RNA_def_property_float_default(prop, 1.0f);
++    RNA_def_property_range(prop, 0.0f, 1.0f);
++    RNA_def_property_ui_text(prop, "dome_scope", "dome_scope");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "dome_radius", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "dome_radius");
++    RNA_def_property_float_default(prop, 5.0f);
++    RNA_def_property_ui_text(prop, "dome_radius", "dome_radius");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "mirror_radius", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "mirror_radius");
++    RNA_def_property_float_default(prop, 0.25f);
++    RNA_def_property_ui_text(prop, "mirror_radius", "mirror_radius");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "mirror_position_x", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "mirror_position_x");
++    RNA_def_property_float_default(prop, 0.0f);
++    RNA_def_property_ui_text(prop, "mirror_position_x", "mirror_position_x");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "mirror_position_y", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "mirror_position_y");
++    RNA_def_property_float_default(prop, 5.0f);
++    RNA_def_property_ui_text(prop, "mirror_position_y", "mirror_position_y");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "mirror_position_z", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "mirror_position_z");
++    RNA_def_property_float_default(prop, 0.0f);
++    RNA_def_property_ui_text(prop, "mirror_position_z", "mirror_position_z");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "projector_position_x", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "projector_position_x");
++    RNA_def_property_float_default(prop, 0.0f);
++    RNA_def_property_ui_text(prop, "projector_position_x", "projector_position_x");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "projector_position_y", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "projector_position_y");
++    RNA_def_property_float_default(prop, 4.0f);
++    RNA_def_property_ui_text(prop, "projector_position_y", "projector_position_y");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++
++    prop = RNA_def_property(srna, "projector_position_z", PROP_FLOAT, PROP_NONE);
++    RNA_def_property_float_sdna(prop, NULL, "projector_position_z");
++    RNA_def_property_float_default(prop, -0.2f);
++    RNA_def_property_ui_text(prop, "projector_position_z", "projector_position_z");
++    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
++}
++
+ static EffectInfo def_effects[] = {
+     {"AddSequence", "Add Sequence", "Add Sequence", nullptr, 2},
+     {"AdjustmentSequence",
+@@ -3587,6 +3805,7 @@ static EffectInfo def_effects[] = {
+      1},
+     {"TextSequence", "Text Sequence", "Sequence strip creating text", rna_def_text, 0},
+     {"ColorMixSequence", "Color Mix Sequence", "Color Mix Sequence", rna_def_color_mix, 2},
++    {"DomIKSequence", "DomIK Sequence", "DomIK Sequence", rna_def_domik, 1},
+     {"", "", "", nullptr, 0},
+ };
+ 
+diff --git a/source/blender/makesrna/intern/rna_sequencer_api.cc b/source/blender/makesrna/intern/rna_sequencer_api.cc
+index 6522a1a6ca8..2e530846038 100644
+--- a/source/blender/makesrna/intern/rna_sequencer_api.cc
++++ b/source/blender/makesrna/intern/rna_sequencer_api.cc
+@@ -813,6 +813,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
+       {SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
+       {SEQ_TYPE_TEXT, "TEXT", 0, "Text", ""},
+       {SEQ_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
++      {SEQ_TYPE_DOMIK, "DOMIK", 0, "DomIK", ""},
+       {0, nullptr, 0, nullptr, nullptr},
+   };
+ 
+diff --git a/source/blender/sequencer/intern/effects.cc b/source/blender/sequencer/intern/effects.cc
+index d0d2171ac31..d217cdcb365 100644
+--- a/source/blender/sequencer/intern/effects.cc
++++ b/source/blender/sequencer/intern/effects.cc
+@@ -16,6 +16,7 @@
+ 
+ #include "BLI_array.hh"
+ #include "BLI_math_rotation.h"
++#include "BLI_math_geom.h"
+ #include "BLI_math_vector.hh"
+ #include "BLI_math_vector_types.hh"
+ #include "BLI_path_util.h"
+@@ -419,7 +420,6 @@ static void do_cross_effect(const SeqRenderData *context,
+     uchar *rect1 = nullptr, *rect2 = nullptr, *rect_out = nullptr;
+ 
+     slice_get_byte_buffers(context, ibuf1, ibuf2, out, start_line, &rect1, &rect2, &rect_out);
+-
+     do_cross_effect_byte(fac, context->rectx, total_lines, rect1, rect2, rect_out);
+   }
+ }
+@@ -1045,8 +1045,8 @@ static void do_colormix_effect(const SeqRenderData *context,
+     uchar *rect1 = nullptr, *rect2 = nullptr, *rect_out = nullptr;
+     slice_get_byte_buffers(context, ibuf1, ibuf2, out, start_line, &rect1, &rect2, &rect_out);
+     do_blend_effect_byte(
+-        fac, context->rectx, total_lines, rect1, rect2, data->blend_effect, rect_out);
+-  }
++         fac, context->rectx, total_lines, rect1, rect2, data->blend_effect, rect_out);
++   }
+ }
+ 
+ /** \} */
+@@ -3175,6 +3175,628 @@ static ImBuf *do_text_effect(const SeqRenderData *context,
+ 
+ /** \} */
+ 
++/*********************** DomIK *************************/
++static void proj(float ret[3],float ray0[3],float ray1[3],float point[3]){
++    float v[3];
++    float axis[3];
++    float t[3];
++    sub_v3_v3v3(v,point,ray0);
++    sub_v3_v3v3(axis,ray1,ray0);
++    project_v3_v3v3(t,v,axis);
++    add_v3_v3v3(ret,t,ray0);
++}
++
++static void med(float ret[3], float v0[3], float v1[3]){
++    add_v3_v3v3(ret,v0,v1);
++    mul_v3_fl(ret,0.5f);
++}
++
++static bool domik_get_point_on_mirror(DomIKVars *domik,float ret[3], float v[3]){
++    float t0[3];
++    float t1[3];
++    float vt[3];
++    float lvt;
++    float s0[3];
++    float s1[3];
++    float v0[3];
++    float v1[3];
++    int iter = 100;
++    float vv[3];
++    float a0;
++    float a1;
++
++    proj(vt,domik->mirror_position,v,domik->projector_position);
++    lvt = len_v3v3(domik->mirror_position,vt);
++
++    if(lvt>=domik->mirror_radius | v[1]<0){
++        sub_v3_v3v3(s0,v,domik->mirror_position);
++        sub_v3_v3v3(s1,domik->projector_position,domik->mirror_position);
++        copy_v3_v3(v0,s0);
++        copy_v3_v3(v1,s1);
++        while(iter--!=0){
++            med(vt,v0,v1);
++            copy_v3_v3(vv,vt);
++            normalize_v3(vv);
++            mul_v3_fl(vv,domik->mirror_radius);
++            sub_v3_v3v3(t0,s0,vv);
++            sub_v3_v3v3(t1,s1,vv);
++            a0 = angle_v3v3(t0,vv);
++            a1 = angle_v3v3(t1,vv);
++
++            if(fabs(a0-a1)<0.000000001) break;
++            if(a0<a1) copy_v3_v3(v0,vt);
++            else copy_v3_v3(v1,vt);
++        }
++
++        med(vv,v0,v1);
++        normalize_v3(vv);
++        mul_v3_fl(vv,domik->mirror_radius);
++        add_v3_v3(vv,domik->mirror_position);
++
++        copy_v3_v3(ret,vv);
++        return true;
++    }
++    return false;
++}
++
++static bool domik_transform_dp(DomIKVars *domik, float ret[3], float param[3], float d[3]){
++    float m[3];
++    float s[3];
++    float p[3];
++    float pp[3];
++    if(domik_get_point_on_mirror(domik,m,d)){
++        sub_v3_v3v3(s,m,domik->projector_position);
++        if(s[1]==0) return false;
++        mul_v3_fl(s,domik->img_mn[1]/s[1]);
++        sub_v3_v3v3(p,s,domik->img_mn);
++        mul_v3_fl(p,1/domik->img_fmn);
++        p[1]=p[2]-1.0f;
++        p[2]=0.0f;
++        param[0] = len_v3v3(m,d);
++        copy_v3_v3(ret,p);
++        return true;
++    }
++    return false;
++}
++
++static bool domik_transform_pd(DomIKVars *domik, float ret[3], float param[3], float p[3]){
++    float s[3];
++    float s1[3];
++    int rs;
++    float r0[3];
++    float r1[3];
++    float m[3];
++
++    float sp_ray[3];
++    float d[3];
++    float pp[3];
++    float dist;
++
++    copy_v3_fl3(s,p[0],0,p[1]+1);
++    mul_v3_fl(s,domik->img_fmn);
++    add_v3_v3(s,domik->img_mn);
++    add_v3_v3v3(s1,s,domik->projector_position);
++
++    rs=isect_line_sphere_v3(domik->projector_position, s1, domik->mirror_position,domik->mirror_radius,r0,r1);
++    if(rs<=0) return false;
++    copy_v3_v3(m,r0);
++    if(rs==2) if(len_v3v3(domik->projector_position,r0)>len_v3v3(domik->projector_position,r1)) copy_v3_v3(m,r1);
++
++    proj(sp_ray,domik->mirror_position,m,domik->projector_position);
++
++    sub_v3_v3v3(s1,sp_ray,domik->projector_position);
++    add_v3_v3(sp_ray,s1);
++
++    rs=isect_line_sphere_v3(m,sp_ray,domik->dome_position,domik->dome_radius,r0,r1);
++    if(rs<=0) return false;
++    copy_v3_v3(d,r0);
++    if(rs==2) if(len_v3v3(domik->mirror_position,r0)<len_v3v3(domik->mirror_position,r1) & r1[2]>=0) copy_v3_v3(d,r1);
++
++    param[0] = len_v3v3(m,d);
++
++    copy_v3_v3(ret,d);
++    return true;
++}
++
++static void domik_recalc(DomIKVars *domik){
++    float dome_h[3];
++    float dome_z[3];
++
++    copy_v3_fl3(domik->dome_position, 0.0f, 0.0f, 0.0f);
++    copy_v3_fl3(domik->mirror_position, domik->mirror_position_x, domik->mirror_position_y,  domik->mirror_position_z);
++    copy_v3_fl3(domik->projector_position,domik->projector_position_x, domik->projector_position_y, domik->projector_position_z);
++
++    copy_v3_fl3(dome_h,domik->dome_position[0],domik->dome_position[1]-domik->dome_radius,domik->dome_position[2]);
++    copy_v3_fl3(dome_z,domik->dome_position[0],domik->dome_position[1],domik->dome_position[2]+domik->dome_radius);
++
++    domik_get_point_on_mirror(domik, domik->img_mn,dome_h);
++    sub_v3_v3(domik->img_mn,domik->projector_position);
++    mul_v3_fl(domik->img_mn,0.5f);
++
++    domik_get_point_on_mirror(domik, domik->img_nn,dome_z);
++    sub_v3_v3(domik->img_nn,domik->projector_position);
++    mul_v3_fl(domik->img_nn,domik->img_mn[1]/domik->img_nn[1]);
++    domik->img_fmn = domik->img_nn[2]-domik->img_mn[2];
++}
++
++static void preset_dome_system(DomIKVars *domik)
++{
++    switch(domik->dome_system){
++        case 0:
++            domik->dome_radius          =  5.0f;
++            domik->mirror_radius        =  0.37f;
++            domik->mirror_position_x    =  0.0f;
++            domik->mirror_position_y    =  5.0f;
++            domik->mirror_position_z    =  0.0f;
++            domik->projector_position_x =  0.0f;
++            domik->projector_position_y =  4.0f;
++            domik->projector_position_z =  0.0f;
++            domik->hfactor              =  1.0f;
++            domik->vfactor              =  1.0f;
++            break;
++        case 1:
++            domik->dome_radius          =  2.5f;
++            domik->mirror_radius        =  0.25f;
++            domik->mirror_position_x    =  0.0f;
++            domik->mirror_position_y    =  2.0f;
++            domik->mirror_position_z    =  0.0f;
++            domik->projector_position_x =  0.0f;
++            domik->projector_position_y =  1.0f;
++            domik->projector_position_z = -0.2f;
++            domik->hfactor              =  1.0f;
++            domik->vfactor              =  1.0f;
++            break;
++        case 2:
++            domik->dome_radius          =100.0f;
++            domik->mirror_radius        =  0.01f;
++            domik->mirror_position_x    =  0.0f;
++            domik->mirror_position_y    =100.0f;
++            domik->mirror_position_z    =  0.0f;
++            domik->projector_position_x =  0.0f;
++            domik->projector_position_y = 99.0f;
++            domik->projector_position_z =  0.0f;
++            domik->hfactor              =  1.017f;
++            domik->vfactor              =  1.017f;
++            break;
++    }
++}
++
++static void load_domik_effect(Sequence *seq)
++{
++    DomIKVars *domik;
++    domik = (DomIKVars *)seq->effectdata;
++
++    domik->width = -1;
++    domik->height = -1;
++    domik->count_threads = 0;
++    domik->init_thread = -1;
++    domik->recache = 1;
++    domik->update = 0;
++    domik->v_update = -999;
++    domik->data=NULL;
++}
++
++static void init_domik_effect(Sequence *seq)
++{
++    DomIKVars *domik;
++
++    if (seq->effectdata) {
++      MEM_freeN(seq->effectdata);
++    }
++
++    seq->effectdata = MEM_callocN(sizeof(DomIKVars), "domik");
++
++    domik = (DomIKVars *)seq->effectdata;
++
++    domik->transformtype        =  4;
++    domik->reverse              =  0;
++    domik->aspect               =  1;
++    domik->interpolation        =  1;
++    domik->seamless             =  0.0f;
++    domik->rotation             =  0.0f;
++    domik->upper                =  1.00f;
++    domik->lateral              =  1.00f;
++    domik->upper_fade           =  0.00f;
++    domik->lateral_fade         =  0.00f;
++    domik->dome_system          =  0;
++    domik->hflip                = 0;
++    domik->vflip                = 0;
++    domik->dome_scope           = 1.0f;
++
++    load_domik_effect(seq);
++}
++
++static int num_inputs_domik(void){
++    return 1;
++}
++
++static void free_domik_effect(Sequence *seq, const bool do_id_user)
++{
++    if(seq->effectdata) {
++        MEM_freeN(seq->effectdata);
++        seq->effectdata = NULL;
++    }
++}
++
++static void copy_domik_effect(Sequence *dst, const Sequence *src, const int flag)
++{
++    dst->effectdata = MEM_dupallocN(src->effectdata);
++    DomIKVars *domik;
++    domik = (DomIKVars *)dst->effectdata;
++    domik->count_threads = 0;
++}
++
++static void domik_waitrnd(){
++    int r = rand()/100000;
++    int i,j=0;
++    for(i=0;i<r;i++){j++;}
++}
++
++static void domik_mix_color(DomIKVars *domik, uchar *c0, uchar *c1, float f, uchar *out){
++    float t = 1.0f - f;
++    t = 1.0f - f;
++    out[0] = c0[0]*t + c1[0]*f;
++    out[1] = c0[1]*t + c1[1]*f;
++    out[2] = c0[2]*t + c1[2]*f;
++    out[3] = c0[3]*t + c1[3]*f;
++}
++
++static void get_domik_color(DomIKVars *domik, DomIKData *ddata, uchar *rect, int x, int y, uchar *out){
++    uchar tmp[4];
++    uchar *rt = rect;
++    int n0,n1,xt,yt;
++    xt = x<0?0:(x>=domik->width?domik->width-1:x);
++    yt = y<0?0:(y>=domik->height?domik->height-1:y);
++
++    xt = ((int)(domik->offset_x*domik->width)+xt)%domik->width;
++    yt = ((int)(domik->offset_y*domik->height)+yt)%domik->height;
++
++    xt = (domik->hflip?domik->width-xt-1:xt);
++    yt = (domik->vflip?domik->height-yt-1:yt);
++
++    n0 = (domik->width*yt+xt)*4;
++    if(domik->seamless){
++        n1 = (domik->width*(yt+1)-xt-1)*4;
++        domik_mix_color(domik, &rt[n1], &rt[n0], 0.5f+ddata->lateral_fade/2.0f, tmp);
++        domik_mix_color(domik, domik->bg, tmp, ddata->upper_fade, out);
++    } else {
++        domik_mix_color(domik, domik->bg, &rt[n0], ddata->lateral_fade*ddata->upper_fade, out);
++    }
++}
++
++static void do_domik_effect_byte(Sequence *seq,
++                                  int width,
++                                  int height,
++                                  int start_line,
++                                  int total_lines,
++                                  uchar *rect1,
++                                  uchar *out)
++{
++  using namespace blender;
++    DomIKVars *domik = (DomIKVars *)seq->effectdata;
++
++    long xi,x,y,xo,yo,index,offset;
++
++    float xp,yp,xt,yt,xf,yf;
++    float r,pr,a,b;
++    float px,py,pz;
++    float mxd,myd,mxs,mys;
++    float M_2PI = (float)(2*M_PI);
++    float aspect = domik->aspect?(float)width/(float)height:1.0f;
++    float angle = domik->rotation/(float)(180*M_PI);
++    float p[3];
++    float d[3];
++    float param[3];
++    float hscale = aspect;
++    float vscale = 1.0f;
++
++    uchar col00[4],col01[4],col10[4],col11[4];
++    uchar *rt = out;
++
++    struct DomIKData ddata;
++
++
++    long id = domik->count_threads++;
++    if(id==0){
++        if(domik->height!=height || domik->width!=width){
++            domik->recache = 1;
++            domik->height = height;
++            domik->width = width;
++            if(domik->data){
++                free(domik->data);
++                domik->data=NULL;
++            }
++            domik->data = (struct DomIKData*) calloc(sizeof(struct DomIKData), width*height);
++        }
++
++        domik->update =
++        domik->transformtype +
++        domik->reverse +
++        domik->width +
++        domik->height +
++        domik->rotation +
++        domik->aspect +
++        domik->vflip +
++        domik->hflip +
++        domik->rflip +
++        domik->seamless +
++        domik->fade +
++        domik->upper +
++        domik->upper_fade +
++        domik->lateral  +
++        domik->lateral_fade  +
++        domik->hfactor +
++        domik->vfactor +
++        domik->dome_radius +
++        domik->dome_scope +
++        domik->mirror_radius +
++        domik->mirror_position_x +
++        domik->mirror_position_y +
++        domik->mirror_position_z +
++        domik->projector_position_x +
++        domik->projector_position_y +
++        domik->projector_position_z +
++        domik->dome_system;
++
++        domik->bg[0] = (unsigned char)(domik->col[0]*255);
++        domik->bg[1] = (unsigned char)(domik->col[1]*255);
++        domik->bg[2] = (unsigned char)(domik->col[2]*255);
++        domik->bg[3] = (unsigned char)(domik->col[3]*255);
++
++        if(domik->update!=domik->v_update)
++        {
++            domik->recache = 1;
++            domik->v_update = domik->update;
++        }
++
++        if(domik->recache==1){
++            preset_dome_system(domik);
++            domik_recalc(domik);
++            for(y=0; y<height; y++){
++                for(x=0; x<width; x++){
++                    ddata.ops = 1;
++                    ddata.dist = 1.0f;
++                    ddata.upper_fade = 1.0f;
++                    ddata.lateral_fade = 1.0f;
++                    ddata.x = x;
++                    ddata.y = y;
++                    xp = (float)x/width;
++                    yp = (float)y/height;
++                    xt = xp;
++                    yt = yp;
++
++                    switch(domik->transformtype){
++                    case 0:
++                        xf = (2.0f*xp-1.0f)*hscale;
++                        yf = (2.0f*yp-1.0f)*vscale;
++                        if(!domik->reverse){
++                            xf *=domik->hfactor;
++                            yf *=domik->vfactor;
++                        } else {
++                            xf /=domik->hfactor;
++                            yf /=domik->vfactor;
++                        }
++                        xt = (xf + 1.0f)/2.0f;
++                        yt = (yf + 1.0f)/2.0f;
++                        break;
++                    case 1:
++                        //Equidistant to Fisheye (aspect,angle)
++                        if(!domik->reverse){
++                            xp = (2.0f*xp-1.0f)*hscale;
++                            yp = (2.0f*yp-1.0f)*vscale;
++                            pr = sqrt(xp*xp+yp*yp)*domik->dome_scope;
++                            if(pr<domik->dome_scope) {
++                              a = atan2(xp,-yp)+angle;
++                              yt = domik->rflip?pr:1-pr;
++                              xt = (a/M_PI+1.0f)/2.0f;
++                              if(xt>1) xt-=1; if(xt<0) xt+=1;
++                              xt = (xt - 0.5f)/domik->lateral + 0.5f;
++                              yt = yt/domik->upper;
++                              if(domik->upper_fade>0.0f) ddata.upper_fade = (1.0f-yt)/domik->upper_fade;
++                              ddata.upper_fade = ddata.upper_fade>1.0f?1.0f:sin(ddata.upper_fade*M_PI_2);
++                              if(domik->lateral_fade>0.0) ddata.lateral_fade = (0.5f - fabs(xt - 0.5f))/domik->lateral_fade;
++                              ddata.lateral_fade = ddata.lateral_fade>1.0f?1.0f:sin(ddata.lateral_fade*M_PI_2);
++                            } else {
++                              ddata.ops = 2;
++                            }
++                        }else{
++                            xt = (xp - 0.5f)*domik->lateral + 0.5f;
++                            yt = yp*domik->upper;
++                            a = (2.0f*xt-1.0f)*M_PI-angle;
++                            pr = domik->rflip?yt:1-yt;
++                            xt = pr*sin(a);
++                            yt = -pr*cos(a);
++                            yt = (yt/vscale+1.0f)/2.0f;
++                            xt = (xt/hscale+1.0f)/2.0f;
++                        }
++                        break;
++                    case 2:
++                        //Equidistant to Spherical (angle)
++                        if(!domik->reverse){
++                            xp = (xp-0.5f)/domik->hfactor+0.5f;
++                            yp = yp/domik->vfactor;
++                            xf = (2.0f*xp-1.0f);
++                            pr = sqrt(xf*xf+yp*yp);
++                            yf = (2.0f*yp-1.0f);
++                            xf *= hscale;
++                            yf *= vscale;
++                            copy_v3_fl3(p,xf,yf,0);
++                            if((pr<=1.0f) && domik_transform_pd(domik, d,param,p)){
++                                px = d[0]/domik->dome_radius;
++                                py = d[1]/domik->dome_radius;
++                                pz = d[2]/domik->dome_radius;
++                                pr = sqrt(px*px+py*py);
++                                b = atan2(pz,pr);
++                                a = atan2(py,px)+angle;
++                                xt = (a-M_PI_2)/M_2PI;
++                                xt = xt - floor(xt);
++                                yt = b/M_PI_2;
++                                yt = 1.0f+domik->dome_scope*(yt-1.0f);
++
++                                xt = (xt - 0.5f)/domik->lateral + 0.5f;
++                                yt = yt/domik->upper;
++                                ddata.dist = (domik->fade>0.0f)?param[0]/domik->dome_radius/domik->fade/2.0f:1.0f;
++                                ddata.dist = (ddata.dist>1.0f)?1.0f:sin(ddata.dist*M_PI_2);
++                                ddata.dist *= ddata.dist;
++                                if(domik->upper_fade>0.0f) ddata.upper_fade = (1.0f-yt)/domik->upper_fade;
++                                ddata.upper_fade = ddata.upper_fade>1.0f?1.0f:sin(ddata.upper_fade*M_PI_2);
++                                ddata.upper_fade *= ddata.dist;
++                                if(domik->lateral_fade>0.0) ddata.lateral_fade = (0.5f - fabs(xt - 0.5f))/domik->lateral_fade;
++                                ddata.lateral_fade = ddata.lateral_fade>1.0f?1.0f:sin(ddata.lateral_fade*M_PI_2);
++                            } else ddata.ops = 2;
++                        } else {
++                            yf = yp*domik->upper;
++                            xf = (xp - 0.5f)*domik->lateral + 0.5f;
++                            yf = domik->rflip?1-yf:yf;
++                            b = yf*M_PI_2;
++                            a = xf*M_2PI+M_PI_2-angle;
++                            pz = sin(b);
++                            r = cos(b);
++                            py = r*sin(a);
++                            px = r*cos(a);
++                            copy_v3_fl3(d,px*domik->dome_radius,py*domik->dome_radius,pz*domik->dome_radius);
++                            if(domik_transform_dp(domik,p,param,d)){
++                                xf = p[0]/hscale;
++                                yf = p[1]/vscale;
++                                yf = (yf+1.0f)/2.0f;
++                                xf = (xf+1.0f)/2.0f;
++                                xt = (xf-0.5f)*domik->hfactor+0.5f;
++                                yt = yf*domik->vfactor;
++                            } else ddata.ops = 2;
++                        }
++                        break;
++                    case 3:
++                        //Fisheye to Spherical
++                        if(!domik->reverse){
++                            xf = (2.0f*xp-1.0f)/domik->hfactor;
++                            pr = sqrt(xf*xf+yp*yp);
++                            xf *= aspect;
++                            yf = (2.0f*yp/domik->vfactor-1.0f);
++                            copy_v3_fl3(p,xf,yf,0);
++                            if((pr<=1.0f) && domik_transform_pd(domik,d,param,p)){
++                                px = d[0]/domik->dome_radius;
++                                py = d[1]/domik->dome_radius;
++                                pz = d[2]/domik->dome_radius;
++                                pr = sqrt(px*px+py*py);
++                                b = atan2(pz,pr);
++                                a = atan2(py,px)+angle;
++                                //from fisheye
++                                pr = (1 - b/M_PI_2)*domik->dome_scope;
++                                xt = (pr*cos(a)+1.0f)/2.0f;
++                                yt = (pr*sin(a)+1.0f)/2.0f;
++                                ddata.dist = (domik->fade>0.0f)?param[0]/domik->dome_radius/domik->fade/2.0f:1.0f;
++                                ddata.dist = (ddata.dist>1.0f)?1.0f:sin(ddata.dist*M_PI_2);
++                                ddata.dist *= ddata.dist;
++                                ddata.upper_fade *= ddata.dist;
++                            } else ddata.ops = 2;
++                        } else {
++                            xf = 2.0f*xp-1.0f;
++                            yf = 2.0f*yp-1.0f;
++                            pr = sqrt(xf*xf+yf*yf);
++                            if(true){
++                                a = atan2(yf,xf);
++                                b = (1-pr)*M_PI_2;
++                                pz = domik->dome_radius*sin(b);
++                                pr = domik->dome_radius*cos(b);
++                                py = pr*sin(a);
++                                px = pr*cos(a);
++                                copy_v3_fl3(d,px,py,pz);
++                                if(domik_transform_dp(domik,p,param,d)){
++                                    xf = p[0];
++                                    yf = p[1];
++                                    xf /= aspect;
++                                    xt = (xf*domik->hfactor+1.0f)/2.0f;
++                                    yt = (yf+1.0f)/2.0f*domik->vfactor;
++                                };
++                            };
++                        }
++                        break;
++                    default:
++                        break;
++                    }
++                    if(xt>=0 && xt<=1 && yt>=0 && yt<=1){
++                        xt *= (width-1);
++                        yt *= (height-1);
++                        ddata.x = (int)(xt);
++                        ddata.y = (int)(yt);
++                        ddata.mx = xt - ddata.x;
++                        ddata.my = yt - ddata.y;
++                    } else {
++                        ddata.ops = 2;
++                    }
++                    domik->data[width*y + x] = ddata;
++                }
++            }
++            domik->recache = 0;
++        }
++    }
++
++    while(domik->recache==1) domik_waitrnd();
++
++    for(y=start_line; y<start_line+total_lines; y++){
++        for(xi=0; xi<width; xi++)
++        {
++            x = xi;
++            index = (width*y + x);
++            ddata = domik->data[index];
++            index*= 4;
++
++            if(ddata.ops==1){
++                xo = ddata.x;
++                yo = ddata.y;
++                if(domik->interpolation){
++                    mxs = ddata.mx;
++                    mys = ddata.my;
++                    mxd = 1.0f-mxs;
++                    myd = 1.0f-mys;
++
++                    get_domik_color(domik, &ddata, rect1, xo+0, yo+0, col00);
++                    get_domik_color(domik, &ddata, rect1, xo+0, yo+1, col01);
++                    get_domik_color(domik, &ddata, rect1, xo+1, yo+0, col10);
++                    get_domik_color(domik, &ddata, rect1, xo+1, yo+1, col11);
++
++                    rt[index+0] = (col00[0]*mxd+col10[0]*mxs)*myd + (col01[0]*mxd+col11[0]*mxs)*mys;
++                    rt[index+1] = (col00[1]*mxd+col10[1]*mxs)*myd + (col01[1]*mxd+col11[1]*mxs)*mys;
++                    rt[index+2] = (col00[2]*mxd+col10[2]*mxs)*myd + (col01[2]*mxd+col11[2]*mxs)*mys;
++                    rt[index+3] = (col00[3]*mxd+col10[3]*mxs)*myd + (col01[3]*mxd+col11[3]*mxs)*mys;
++                } else {
++                    get_domik_color(domik,&ddata, rect1, xo, yo, &rt[index]);
++                }
++            } else {
++                rt[index+0] = domik->bg[0];
++                rt[index+1] = domik->bg[1];
++                rt[index+2] = domik->bg[2];
++                rt[index+3] = domik->bg[3];
++            }
++        }
++    }
++
++    //Thread order
++    domik->count_threads--;
++    if(domik->count_threads<0) domik->count_threads=0;
++}
++
++static void do_domik_effect(const SeqRenderData *context,
++                               Sequence *seq,
++                               float /*timeline_frame*/,
++                               float /*fac*/,
++                               const ImBuf *ibuf1,
++                               const ImBuf *ibuf2,
++                               int start_line,
++                               int total_lines,
++                               ImBuf *out)
++{
++    if (out->float_buffer.data) {
++    }
++    else {
++      domik_waitrnd();
++      uchar *rect1 = nullptr, *rect2 = nullptr, *rect_out = nullptr;
++      rect1 = (uchar*) ibuf1->byte_buffer.data;
++      rect_out = (uchar*) out->byte_buffer.data;
++      do_domik_effect_byte(seq, context->rectx, context->recty, start_line, total_lines, rect1, rect_out);
++    }
++}
++
+ /* -------------------------------------------------------------------- */
+ /** \name Sequence Effect Factory
+  * \{ */
+@@ -3416,6 +4038,15 @@ static SeqEffectHandle get_sequence_effect_impl(int seq_type)
+       rval.early_out = early_out_text;
+       rval.execute = do_text_effect;
+       break;
++    case SEQ_TYPE_DOMIK:
++      rval.num_inputs = num_inputs_domik;
++      rval.init = init_domik_effect;
++      rval.free = free_domik_effect;
++      rval.load = load_domik_effect;
++      rval.copy = copy_domik_effect;
++      rval.multithreaded = true;
++      rval.execute_slice = do_domik_effect;
++      break;
+   }
+ 
+   return rval;
+diff --git a/source/blender/sequencer/intern/sequencer.cc b/source/blender/sequencer/intern/sequencer.cc
+index b72e692e816..104b5eb614a 100644
+--- a/source/blender/sequencer/intern/sequencer.cc
++++ b/source/blender/sequencer/intern/sequencer.cc
+@@ -754,6 +754,9 @@ static bool seq_write_data_cb(Sequence *seq, void *userdata)
+         case SEQ_TYPE_COLORMIX:
+           BLO_write_struct(writer, ColorMixVars, seq->effectdata);
+           break;
++        case SEQ_TYPE_DOMIK:
++          BLO_write_struct(writer, DomIKVars, seq->effectdata);
++          break;
+       }
+     }
+ 
+@@ -853,6 +856,9 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
+       case SEQ_TYPE_COLORMIX:
+         BLO_read_struct(reader, ColorMixVars, &seq->effectdata);
+         break;
++      case SEQ_TYPE_DOMIK:
++        BLO_read_struct(reader, DomIKVars, &seq->effectdata);
++        break;
+       default:
+         BLI_assert_unreachable();
+         seq->effectdata = nullptr;
+diff --git a/source/blender/sequencer/intern/utils.cc b/source/blender/sequencer/intern/utils.cc
+index e50261071f0..4bf72850d9d 100644
+--- a/source/blender/sequencer/intern/utils.cc
++++ b/source/blender/sequencer/intern/utils.cc
+@@ -138,6 +138,8 @@ static const char *give_seqname_by_type(int type)
+       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Over Drop");
+     case SEQ_TYPE_COLORMIX:
+       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Mix");
++    case SEQ_TYPE_DOMIK:
++      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "DomIK");
+     case SEQ_TYPE_WIPE:
+       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Wipe");
+     case SEQ_TYPE_GLOW:
